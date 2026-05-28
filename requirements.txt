@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+jinja2
+python-multipart
+openpyxl
+google-genai
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
+cryptography
+python-dotenv

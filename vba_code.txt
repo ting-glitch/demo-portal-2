@@ -1,0 +1,448 @@
+=========================================
+Item length: 4
+Part 0 type: <class 'str'>
+Part 0 content:
+xl/vbaProject.bin
+...
+Part 1 type: <class 'str'>
+Part 1 content:
+VBA/ThisWorkbook
+...
+Part 2 type: <class 'str'>
+Part 2 content:
+ThisWorkbook.cls
+...
+Part 3 type: <class 'str'>
+Part 3 content:
+Attribute VB_Name = "ThisWorkbook"
+Attribute VB_Base = "0{00020819-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+...
+
+--- FULL VBA CODE ---
+Attribute VB_Name = "ThisWorkbook"
+Attribute VB_Base = "0{00020819-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+=========================================
+Item length: 4
+Part 0 type: <class 'str'>
+Part 0 content:
+xl/vbaProject.bin
+...
+Part 1 type: <class 'str'>
+Part 1 content:
+VBA/Module1
+...
+Part 2 type: <class 'str'>
+Part 2 content:
+Module1.bas
+...
+Part 3 type: <class 'str'>
+Part 3 content:
+Attribute VB_Name = "Module1"
+Option Explicit
+
+'====================================================
+' 唯一主巨集（按一次執行全部）
+'====================================================
+Sub ImportCreditCardBills()
+
+    Dim fd As FileDialog
+    Dim keywordPath As String
+    Dim selectedFile As Variant
+    Dim wbSource As Workbook
+    Dim wsSource As Worksheet
+    Dim wsSummary As Worksheet
+    Dim wsKeyword As Worksheet
+    
+    Dim lastRow As Long
+    Dim outputRow As Long
+    Dim i As Long
+...
+
+--- FULL VBA CODE ---
+Attribute VB_Name = "Module1"
+Option Explicit
+
+'====================================================
+' 唯一主巨集（按一次執行全部）
+'====================================================
+Sub ImportCreditCardBills()
+
+    Dim fd As FileDialog
+    Dim keywordPath As String
+    Dim selectedFile As Variant
+    Dim wbSource As Workbook
+    Dim wsSource As Worksheet
+    Dim wsSummary As Worksheet
+    Dim wsKeyword As Worksheet
+    
+    Dim lastRow As Long
+    Dim outputRow As Long
+    Dim i As Long
+    Dim detailText As String
+    Dim category As String
+    Dim fileName As String
+    Dim bankName As String
+    Dim billMonth As Date
+    
+    Dim keywordArr As Variant
+    Dim keywordLastRow As Long
+    
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+    
+    On Error GoTo SafeExit
+    
+    '=================================================
+    ' 建立或取得總表
+    '=================================================
+    On Error Resume Next
+    Set wsSummary = ThisWorkbook.Worksheets("總表")
+    On Error GoTo 0
+    
+    If wsSummary Is Nothing Then
+        Set wsSummary = ThisWorkbook.Worksheets.Add
+        wsSummary.Name = "總表"
+        wsSummary.Range("A1:H1").Value = Array( _
+            "帳單月份", "帳單銀行", "刷卡日期", "入帳起息日", _
+            "消費明細", "新台幣金額", "消費地區", "消費分類")
+    End If
+    
+    outputRow = wsSummary.Cells(wsSummary.Rows.Count, 1).End(xlUp).Row + 1
+    
+    '=================================================
+    ' 上傳關鍵字對照表
+    '=================================================
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+    With fd
+        .Title = "請選擇最新消費分類關鍵字對照表"
+        .Filters.Clear
+        .Filters.Add "Excel Files", "*.xlsx; *.xlsm; *.xls"
+        
+        If .Show <> -1 Then GoTo SafeExit
+        keywordPath = .SelectedItems(1)
+    End With
+    
+    Set wbSource = Workbooks.Open(keywordPath)
+    Set wsKeyword = wbSource.Sheets(1)
+    
+    keywordLastRow = wsKeyword.Cells(wsKeyword.Rows.Count, 1).End(xlUp).Row
+    keywordArr = wsKeyword.Range("A2:B" & keywordLastRow).Value
+    
+    wbSource.Close False
+    
+    '=================================================
+    ' 多選信用卡帳單
+    '=================================================
+    Set fd = Application.FileDialog(msoFileDialogFilePicker)
+    With fd
+        .Title = "請選擇新增信用卡帳單（可多選）"
+        .AllowMultiSelect = True
+        .Filters.Clear
+        .Filters.Add "Excel Files", "*.xlsx; *.xlsm; *.xls"
+        
+        If .Show <> -1 Then GoTo SafeExit
+        
+        For Each selectedFile In .SelectedItems
+            
+            fileName = Mid(selectedFile, InStrRev(selectedFile, "\") + 1)
+            
+            bankName = Split(fileName, "_")(0)
+            billMonth = DateSerial( _
+                CLng(Split(fileName, "_")(1)), _
+                CLng(Split(fileName, "_")(2)), 1)
+            
+            Set wbSource = Workbooks.Open(selectedFile)
+            Set wsSource = wbSource.Sheets(1)
+            
+            lastRow = wsSource.Cells(wsSource.Rows.Count, 1).End(xlUp).Row
+            
+            For i = 2 To lastRow
+                
+                detailText = CStr(wsSource.Cells(i, 3).Value)
+                category = GetCategory(detailText, keywordArr)
+                
+                If Not IsDuplicate(wsSummary, billMonth, bankName, _
+                    wsSource.Cells(i, 1).Value, detailText, _
+                    wsSource.Cells(i, 4).Value) Then
+                    
+                    wsSummary.Cells(outputRow, 1).Value = billMonth
+                    wsSummary.Cells(outputRow, 1).NumberFormat = "yyyymm"
+                    wsSummary.Cells(outputRow, 2).Value = bankName
+                    wsSummary.Cells(outputRow, 3).Value = wsSource.Cells(i, 1).Value
+                    wsSummary.Cells(outputRow, 4).Value = wsSource.Cells(i, 2).Value
+                    wsSummary.Cells(outputRow, 5).Value = detailText
+                    wsSummary.Cells(outputRow, 6).Value = wsSource.Cells(i, 4).Value
+                    wsSummary.Cells(outputRow, 7).Value = wsSource.Cells(i, 5).Value
+                    wsSummary.Cells(outputRow, 8).Value = category
+                    
+                    outputRow = outputRow + 1
+                End If
+                
+            Next i
+            
+            wbSource.Close False
+        Next selectedFile
+    End With
+    
+    '=================================================
+    ' 重跑全部分類
+    '=================================================
+    ReClassifyAll wsSummary, keywordArr
+    
+    '=================================================
+    ' 更新既有儀表板（樞紐+圖表）
+    '=================================================
+    RefreshDashboard
+    
+    MsgBox "資料匯入、分類、樞紐、圖表更新完成！"
+
+SafeExit:
+    Application.ScreenUpdating = True
+    Application.DisplayAlerts = True
+
+End Sub
+
+
+'====================================================
+' 以下全部改 Private，不顯示在巨集清單
+'====================================================
+Private Function GetCategory(detailText As String, keywordArr As Variant) As String
+    Dim i As Long
+    
+    For i = 1 To UBound(keywordArr, 1)
+        If InStr(1, detailText, keywordArr(i, 1), vbTextCompare) > 0 Then
+            GetCategory = keywordArr(i, 2)
+            Exit Function
+        End If
+    Next i
+    
+    GetCategory = "其他"
+End Function
+
+
+Private Function IsDuplicate(ws As Worksheet, billMonth As Date, bankName As String, _
+    cardDate As Variant, detailText As String, amount As Variant) As Boolean
+    
+    Dim lastRow As Long
+    Dim i As Long
+    
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    
+    For i = 2 To lastRow
+        If ws.Cells(i, 1).Value = billMonth _
+           And ws.Cells(i, 2).Value = bankName _
+           And ws.Cells(i, 3).Value = cardDate _
+           And ws.Cells(i, 5).Value = detailText _
+           And ws.Cells(i, 6).Value = amount Then
+           
+           IsDuplicate = True
+           Exit Function
+        End If
+    Next i
+    
+    IsDuplicate = False
+End Function
+
+
+Private Sub ReClassifyAll(wsSummary As Worksheet, keywordArr As Variant)
+
+    Dim lastRow As Long
+    Dim i As Long
+    
+    lastRow = wsSummary.Cells(wsSummary.Rows.Count, 1).End(xlUp).Row
+    
+    For i = 2 To lastRow
+        wsSummary.Cells(i, 8).Value = GetCategory(wsSummary.Cells(i, 5).Value, keywordArr)
+    Next i
+
+End Sub
+
+
+Private Sub RefreshDashboard()
+
+    Dim wsDash As Worksheet
+    Dim pt As PivotTable
+    Dim chartObj As ChartObject
+    
+    On Error Resume Next
+    Set wsDash = ThisWorkbook.Worksheets("分析儀表板")
+    On Error GoTo 0
+    
+    If wsDash Is Nothing Then Exit Sub
+    
+    For Each pt In wsDash.PivotTables
+        pt.PivotCache.Refresh
+        pt.RefreshTable
+    Next pt
+    
+    For Each chartObj In wsDash.ChartObjects
+        chartObj.Chart.Refresh
+    Next chartObj
+
+End Sub
+
+
+=========================================
+Item length: 4
+Part 0 type: <class 'str'>
+Part 0 content:
+xl/vbaProject.bin
+...
+Part 1 type: <class 'str'>
+Part 1 content:
+VBA/工作表3
+...
+Part 2 type: <class 'str'>
+Part 2 content:
+工作表3.cls
+...
+Part 3 type: <class 'str'>
+Part 3 content:
+Attribute VB_Name = "工作表3"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+...
+
+--- FULL VBA CODE ---
+Attribute VB_Name = "工作表3"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+=========================================
+Item length: 4
+Part 0 type: <class 'str'>
+Part 0 content:
+xl/vbaProject.bin
+...
+Part 1 type: <class 'str'>
+Part 1 content:
+VBA/工作表2
+...
+Part 2 type: <class 'str'>
+Part 2 content:
+工作表2.cls
+...
+Part 3 type: <class 'str'>
+Part 3 content:
+Attribute VB_Name = "工作表2"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+...
+
+--- FULL VBA CODE ---
+Attribute VB_Name = "工作表2"
+Attribute VB_Base = "0{00020820-0000-0000-C000-000000000046}"
+Attribute VB_GlobalNameSpace = False
+Attribute VB_Creatable = False
+Attribute VB_PredeclaredId = True
+Attribute VB_Exposed = True
+Attribute VB_TemplateDerived = False
+Attribute VB_Customizable = True
+
+=========================================
+Item length: 4
+Part 0 type: <class 'str'>
+Part 0 content:
+xl/vbaProject.bin
+...
+Part 1 type: <class 'str'>
+Part 1 content:
+VBA/Module2
+...
+Part 2 type: <class 'str'>
+Part 2 content:
+Module2.bas
+...
+Part 3 type: <class 'str'>
+Part 3 content:
+Attribute VB_Name = "Module2"
+Sub SaveCreditCardSummaryBackup()
+
+    Dim folderPath As String
+    Dim fileName As String
+    Dim fullPath As String
+    Dim fileExt As String
+    
+    On Error GoTo ErrHandler
+    
+    '==============================
+    ' 固定儲存路徑
+    '==============================
+    folderPath = "C:\Users\ting_hsia\OneDrive - ASUS\GenAI_內部專家課程_2026-20260427_零基礎的Excel VBA自動化 - Badge\"
+    
+    '==============================
+    ' 檔名：信用卡明細彙整_Ting_YYMMDD
+    '===
+...
+
+--- FULL VBA CODE ---
+Attribute VB_Name = "Module2"
+Sub SaveCreditCardSummaryBackup()
+
+    Dim folderPath As String
+    Dim fileName As String
+    Dim fullPath As String
+    Dim fileExt As String
+    
+    On Error GoTo ErrHandler
+    
+    '==============================
+    ' 固定儲存路徑
+    '==============================
+    folderPath = "C:\Users\ting_hsia\OneDrive - ASUS\GenAI_內部專家課程_2026-20260427_零基礎的Excel VBA自動化 - Badge\"
+    
+    '==============================
+    ' 檔名：信用卡明細彙整_Ting_YYMMDD
+    '==============================
+    fileName = "信用卡明細彙整_Ting_" & Format(Date, "yymmdd")
+    
+    ' 保留原本 Excel 巨集格式
+    fileExt = ".xlsm"
+    
+    fullPath = folderPath & fileName & fileExt
+    
+    '==============================
+    ' 另存新檔
+    '==============================
+    ThisWorkbook.SaveCopyAs fullPath
+    
+    MsgBox "已成功另存新檔：" & vbCrLf & fullPath
+    
+    Exit Sub
+
+ErrHandler:
+    MsgBox "另存失敗：" & Err.Description
+
+End Sub
+

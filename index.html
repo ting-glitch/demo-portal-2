@@ -1,0 +1,3040 @@
+<!DOCTYPE html>
+
+<html lang="zh-TW">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>智匯卡管家 | Card Statement Manager</title>
+
+    <!-- Google Fonts: Outfit & Inter -->
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Chart.js -->
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Chart.js DataLabels Plugin -->
+
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+
+    <!-- Lucide Icons (CDN) -->
+
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Vanilla CSS Style -->
+
+    <link rel="stylesheet" href="css/style.css?v=20260528_1057">
+
+    <style>
+
+        /* ====================================================
+
+           歷史消費明細 — 重新設計版面 (He = History Explorer)
+
+           ==================================================== */
+
+
+
+        /* Section header row */
+
+        .he-header {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding-bottom: 0.9rem;
+
+            border-bottom: 1px solid var(--border-color);
+
+            margin-bottom: 0;
+
+        }
+
+        .he-title {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.5rem;
+
+            color: var(--text-primary);
+
+        }
+
+        .he-title h2 {
+
+            font-size: 1rem;
+
+            font-weight: 700;
+
+            margin: 0;
+
+        }
+
+
+
+        /* Filter toggle button — pill style */
+
+        .he-filter-btn {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 0.35rem;
+
+            padding: 0.45rem 0.95rem;
+
+            font-size: 0.78rem;
+
+            font-weight: 500;
+
+            color: var(--text-secondary);
+
+            background: var(--bg-primary);
+
+            border: 1px solid var(--border-color);
+
+            border-radius: var(--border-radius); /* 6px微方圓角 */
+
+            cursor: pointer;
+
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+            outline: none;
+
+        }
+
+        .he-filter-btn:hover {
+
+            color: var(--primary-color);
+
+            border-color: var(--primary-color);
+
+            background: var(--primary-light);
+
+            transform: translateY(-1px);
+
+        }
+
+        .he-filter-btn.active {
+
+            color: var(--primary-color);
+
+            background: var(--primary-light);
+
+            border-color: var(--primary-color);
+
+            box-shadow: 0 2px 4px rgba(37, 99, 235, 0.05);
+
+        }
+
+
+
+        /* Sliding filter panel */
+
+        .he-filter-panel {
+
+            display: grid;
+
+            grid-template-rows: 0fr;
+
+            transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+
+                        opacity 0.25s ease;
+
+            opacity: 0;
+
+        }
+
+        .he-filter-panel.show {
+
+            grid-template-rows: 1fr;
+
+            opacity: 1;
+
+        }
+
+        .he-filter-inner {
+
+            overflow: hidden;
+
+            padding: 0;
+
+            transition: all 0.3s ease;
+
+        }
+
+        .he-filter-panel.show .he-filter-inner {
+
+            padding: 1.25rem 1.5rem;
+
+            background: var(--bg-primary);
+
+            border: 1px solid var(--border-color);
+
+            border-radius: var(--border-radius-lg); /* 8px 圓角卡片 */
+
+            margin-top: 1rem;
+
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.01);
+
+        }
+
+        .dark-mode .he-filter-panel.show .he-filter-inner {
+
+            background: rgba(15, 23, 42, 0.25);
+
+            box-shadow: none;
+
+        }
+
+
+
+        /* Filter group layout */
+
+        .he-filter-group {
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 0.6rem;
+
+        }
+
+        .he-filter-group-header {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.6rem; /* 標題與快捷鍵並排，保留適度呼吸間距 */
+
+            padding-bottom: 0.3rem;
+
+            border-bottom: 1px dashed rgba(0, 0, 0, 0.05);
+
+            white-space: nowrap;
+
+            flex-wrap: nowrap;
+
+        }
+
+        .dark-mode .he-filter-group-header {
+
+            border-bottom-color: rgba(255, 255, 255, 0.05);
+
+        }
+
+
+
+        .he-header-title {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 0.35rem;
+
+            font-size: 0.8rem;
+
+            font-weight: 600; /* 適時加粗：群組標題加粗，層次更鮮明 */
+
+            color: var(--text-primary);
+
+            letter-spacing: 0.02em;
+
+        }
+
+
+
+        /* Year segmented control (iOS / Tailwind style) */
+
+        .he-year-tabs {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.1rem;
+
+            background: rgba(15, 23, 42, 0.05);
+
+            border: 1px solid var(--border-color);
+
+            border-radius: var(--border-radius);
+
+            padding: 3px;
+
+            width: fit-content;
+
+        }
+
+        .dark-mode .he-year-tabs {
+
+            background: rgba(255, 255, 255, 0.05);
+
+        }
+
+        .he-year-tab {
+
+            padding: 0.3rem 0.8rem;
+
+            font-family: 'Outfit', sans-serif !important; /* 英數及年度啟用 Outfit 字型 */
+
+            font-size: 0.75rem;
+
+            font-weight: 500; /* 預設 500 輕中字重 */
+
+            border-radius: var(--border-radius-sm);
+
+            border: none;
+
+            background: transparent;
+
+            color: var(--text-secondary);
+
+            cursor: pointer;
+
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+        }
+
+        .he-year-tab:hover {
+
+            color: var(--text-primary);
+
+        }
+
+        .he-year-tab.active {
+
+            background: var(--bg-secondary);
+
+            color: var(--primary-color);
+
+            font-weight: 600; /* 適時加粗：選中年度加粗 600 */
+
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+
+        }
+
+        .dark-mode .he-year-tab.active {
+
+            background: var(--border-color);
+
+            color: #fff;
+
+            font-weight: 600; /* 適時加粗 */
+
+            box-shadow: none;
+
+        }
+
+
+
+        /* Inline Quick Actions for Filter Group Headers */
+
+        .he-quick-actions {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 0.15rem;
+
+            margin-left: 0.6rem; /* 緊貼標題右側 */
+
+            font-size: 0.72rem;
+
+            font-weight: 400;
+
+            font-family: 'Inter', 'Outfit', 'Segoe UI', -apple-system, BlinkMacSystemFont, "Microsoft JhengHei", "微軟正黑體", sans-serif;
+
+            user-select: none;
+
+            vertical-align: middle;
+
+            line-height: 1;
+
+        }
+
+
+
+        .he-quick-action {
+
+            color: var(--text-secondary);
+
+            cursor: pointer;
+
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+
+            padding: 0.1rem 0.3rem;
+
+            border-radius: var(--border-radius-sm);
+
+            font-family: inherit;
+
+            font-weight: 500; /* 預設 500 輕中字重 */
+
+            display: inline-block;
+
+        }
+
+
+
+        .he-quick-action:hover {
+
+            color: var(--primary-color);
+
+            background-color: var(--primary-light);
+
+        }
+
+
+
+        .dark-mode .he-quick-action:hover {
+
+            color: var(--primary-color);
+
+            background-color: rgba(56, 189, 248, 0.1);
+
+        }
+
+
+
+        .he-quick-action.active {
+
+            color: var(--primary-color);
+
+            font-weight: 600; /* 選定狀態適時加粗 600 */
+
+        }
+
+
+
+        .he-quick-action.disabled {
+
+            opacity: 0.35;
+
+            cursor: not-allowed;
+
+            pointer-events: none;
+
+        }
+
+
+
+        .he-quick-divider {
+
+            color: var(--border-color);
+
+            font-family: inherit;
+
+            font-weight: 400;
+
+            opacity: 0.7;
+
+            margin: 0 0.05rem;
+
+        }
+
+
+
+        /* Slicer chip layout with Soft-Square 6px rounded */
+
+        .he-slicer-host {
+
+            display: flex;
+
+            flex-wrap: wrap;
+
+            gap: 0.4rem;
+
+        }
+
+        .he-chip {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            padding: 0.35rem 0.75rem;
+
+            font-family: 'Outfit', sans-serif !important; /* 英數及符號啟用 Outfit 字型，完美契合全局 */
+
+            font-size: 0.75rem;
+
+            font-weight: 400;
+
+            border-radius: var(--border-radius); /* 6px Soft-Square圓角 */
+
+            border: 1px solid var(--border-color);
+
+            background: var(--bg-secondary);
+
+            color: var(--text-secondary);
+
+            cursor: pointer;
+
+            user-select: none;
+
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+            white-space: nowrap;
+
+            gap: 0.35rem;
+
+        }
+
+        .he-chip:hover {
+
+            border-color: var(--primary-color);
+
+            color: var(--text-primary);
+
+            background: var(--primary-light);
+
+            transform: translateY(-1px);
+
+        }
+
+        .he-chip.active {
+
+            background: var(--primary-light);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: var(--primary-color);
+
+            font-weight: 600; /* 適時加粗：已選中晶片加粗 600，對比感強烈 */
+
+            box-shadow: none;
+
+        }
+
+        .dark-mode .he-chip.active {
+
+            background: rgba(56, 189, 248, 0.12);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: var(--primary-color);
+
+            font-weight: 600; /* 適時加粗 */
+
+            box-shadow: none;
+
+        }
+
+
+
+        /* Custom Category Chip Active Colors (1:1 synced with Chart.js) */
+
+        .he-chip[data-cat="購物"].active {
+
+            background: rgba(59, 130, 246, 0.08);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: #3B82F6;
+
+        }
+
+        .he-chip[data-cat="餐飲"].active {
+
+            background: rgba(239, 68, 68, 0.08);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: #EF4444;
+
+        }
+
+        .he-chip[data-cat="休閒旅遊"].active {
+
+            background: rgba(16, 185, 129, 0.08);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: #10B981;
+
+        }
+
+        .he-chip[data-cat="交通運輸"].active {
+
+            background: rgba(245, 158, 11, 0.08);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: #F59E0B;
+
+        }
+
+        .he-chip[data-cat="辦公用品"].active {
+
+            background: rgba(139, 92, 246, 0.08);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: #8B5CF6;
+
+        }
+
+        .he-chip[data-cat="醫療/健康"].active {
+
+            background: rgba(236, 72, 153, 0.08);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: #EC4899;
+
+        }
+
+        .he-chip[data-cat="其他"].active {
+
+            background: rgba(100, 116, 139, 0.08);
+
+            border-color: var(--border-color); /* 保持中性邊框，不改變邊框顏色 */
+
+            color: #64748B;
+
+        }
+
+
+
+        /* Dark mode overrides for custom category active states */
+
+        .dark-mode .he-chip[data-cat="購物"].active { background: rgba(59, 130, 246, 0.16); color: #60A5FA; border-color: var(--border-color); }
+
+        .dark-mode .he-chip[data-cat="餐飲"].active { background: rgba(239, 68, 68, 0.16); color: #F87171; border-color: var(--border-color); }
+
+        .dark-mode .he-chip[data-cat="休閒旅遊"].active { background: rgba(16, 185, 129, 0.16); color: #34D399; border-color: var(--border-color); }
+
+        .dark-mode .he-chip[data-cat="交通運輸"].active { background: rgba(245, 158, 11, 0.16); color: #FBBF24; border-color: var(--border-color); }
+
+        .dark-mode .he-chip[data-cat="辦公用品"].active { background: rgba(139, 92, 246, 0.16); color: #A78BFA; border-color: var(--border-color); }
+
+        .dark-mode .he-chip[data-cat="醫療/健康"].active { background: rgba(236, 72, 153, 0.16); color: #F472B6; border-color: var(--border-color); }
+
+        .dark-mode .he-chip[data-cat="其他"].active { background: rgba(100, 116, 139, 0.16); color: #94A3B8; border-color: var(--border-color); }
+
+
+
+        /* Divider between sections */
+
+        .he-filter-divider {
+
+            border: none;
+
+            border-top: 1px solid var(--border-color);
+
+            margin: 0.8rem 0;
+
+            opacity: 0.4;
+
+        }
+
+
+
+        /* Responsive 2-column grid layout for category and bank */
+
+        .he-filter-row-2col {
+
+            display: grid;
+
+            grid-template-columns: 1fr 1fr;
+
+            gap: 1.5rem;
+
+        }
+
+        @media (max-width: 768px) {
+
+            .he-filter-row-2col {
+
+                grid-template-columns: 1fr;
+
+                gap: 1.2rem;
+
+            }
+
+        }
+
+
+
+        /* Adjustments for the tables layout */
+
+        .he-filter-panel + .table-wrapper {
+
+            margin-top: 0;
+
+        }
+
+        .explorer-table-wrapper {
+
+            margin-top: 1rem;
+
+        }
+
+
+
+        /* Custom Category Badges in explorer table (Synced with category colors) */
+
+        .category-badge[data-cat="購物"] {
+
+            background: rgba(59, 130, 246, 0.18);
+
+            border-color: rgba(59, 130, 246, 0.35);
+
+            color: #1D4ED8;
+
+        }
+
+        .category-badge[data-cat="餐飲"] {
+
+            background: rgba(239, 68, 68, 0.18);
+
+            border-color: rgba(239, 68, 68, 0.35);
+
+            color: #B91C1C;
+
+        }
+
+        .category-badge[data-cat="休閒旅遊"] {
+
+            background: rgba(16, 185, 129, 0.18);
+
+            border-color: rgba(16, 185, 129, 0.35);
+
+            color: #047857;
+
+        }
+
+        .category-badge[data-cat="交通運輸"] {
+
+            background: rgba(245, 158, 11, 0.18);
+
+            border-color: rgba(245, 158, 11, 0.35);
+
+            color: #B45309;
+
+        }
+
+        .category-badge[data-cat="辦公用品"] {
+
+            background: rgba(139, 92, 246, 0.18);
+
+            border-color: rgba(139, 92, 246, 0.35);
+
+            color: #5B21B6;
+
+        }
+
+        .category-badge[data-cat="醫療/健康"] {
+
+            background: rgba(236, 72, 153, 0.18);
+
+            border-color: rgba(236, 72, 153, 0.35);
+
+            color: #BE185D;
+
+        }
+
+        .category-badge[data-cat="其他"] {
+
+            background: rgba(100, 116, 139, 0.18);
+
+            border-color: rgba(100, 116, 139, 0.35);
+
+            color: #334155;
+
+        }
+
+
+
+        .dark-mode .category-badge[data-cat="購物"] { background: rgba(59, 130, 246, 0.16); color: #60A5FA; border-color: rgba(59, 130, 246, 0.3); }
+
+        .dark-mode .category-badge[data-cat="餐飲"] { background: rgba(239, 68, 68, 0.16); color: #F87171; border-color: rgba(239, 68, 68, 0.3); }
+
+        .dark-mode .category-badge[data-cat="休閒旅遊"] { background: rgba(16, 185, 129, 0.16); color: #34D399; border-color: rgba(16, 185, 129, 0.3); }
+
+        .dark-mode .category-badge[data-cat="交通運輸"] { background: rgba(245, 158, 11, 0.16); color: #FBBF24; border-color: rgba(245, 158, 11, 0.3); }
+
+        .dark-mode .category-badge[data-cat="辦公用品"] { background: rgba(139, 92, 246, 0.16); color: #A78BFA; border-color: rgba(139, 92, 246, 0.3); }
+
+        .dark-mode .category-badge[data-cat="醫療/健康"] { background: rgba(236, 72, 153, 0.16); color: #F472B6; border-color: rgba(236, 72, 153, 0.3); }
+
+        .dark-mode .category-badge[data-cat="其他"] { background: rgba(100, 116, 139, 0.16); color: #94A3B8; border-color: rgba(100, 116, 139, 0.3); }
+
+
+
+        /* ====================================================
+
+           歷史消費明細與審查表格 — 高雅粗細對比與 'Outfit' 全局字型聯動
+
+           ==================================================== */
+
+        .review-table th, .settings-table th {
+
+            font-weight: 600 !important; /* 表格標題維持 600 粗體，展現結構感 */
+
+            font-size: 0.78rem !important;
+
+            letter-spacing: 0.02em;
+
+            color: var(--text-secondary);
+
+        }
+
+
+
+        .review-table td {
+
+            font-size: 0.8rem !important;
+
+            border-bottom: 1px solid var(--border-color);
+
+        }
+
+
+
+        /* 儲存格高級粗細對比與英數字型疊構 */
+
+        .cell-month {
+
+            font-family: 'Outfit', sans-serif !important; /* 英數採用網站主打之 Outfit 字型，完美聯動 KPI */
+
+            font-weight: 400;
+
+            color: var(--text-secondary);
+
+        }
+
+
+
+        .cell-bank {
+
+            font-family: inherit !important;
+
+            font-weight: 600 !important; /* 適時加粗：銀行名稱加粗，便於品牌掃描 */
+
+            color: var(--text-primary);
+
+        }
+
+
+
+        .cell-date {
+
+            font-family: 'Outfit', sans-serif !important; /* 英數採用 Outfit 字型，與全局一致 */
+
+            font-weight: 400;
+
+            color: var(--text-secondary);
+
+        }
+
+
+
+        .cell-detail {
+
+            font-family: inherit !important;
+
+            font-weight: 600 !important; /* 適時加粗：明細描述加粗，作為每一行交易的核心錨點 */
+
+            color: var(--text-primary);
+
+        }
+
+
+
+        .cell-amount {
+
+            font-family: 'Outfit', sans-serif !important; /* 金額採用 Outfit 字型，100% 呼應大字 KPI */
+
+            font-size: 0.85rem !important; /* 稍微放大以配合 Outfit 幾何外觀 */
+
+            font-weight: 700 !important; /* 適時加粗：金額加粗以利極速閱覽 */
+
+            color: var(--primary-color);
+
+            letter-spacing: -0.01em;
+
+        }
+
+
+
+        .cell-location {
+
+            font-family: inherit !important;
+
+            font-weight: 400;
+
+            color: var(--text-secondary);
+
+        }
+
+
+
+        .approve-row-btn {
+
+            font-weight: 600 !important; /* 按鈕適度加粗，維持點擊意願強度 */
+
+        }
+
+
+
+        .cat-select {
+
+            font-weight: 500 !important; /* 選單適度加粗 */
+
+        }
+
+
+
+        /* 🔴 歷史消費明細：表頭排序與即時搜尋 CSS 精緻樣式 */
+
+        .sortable-header {
+
+            cursor: pointer;
+
+            user-select: none;
+
+            transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+
+        }
+
+        .sortable-header:hover {
+
+            background-color: var(--primary-light) !important;
+
+            color: var(--primary-color) !important;
+
+        }
+
+        .sortable-header.active {
+
+            color: var(--primary-color) !important;
+
+        }
+
+        .sort-icon {
+
+            display: inline-block;
+
+            vertical-align: middle;
+
+            width: 12px;
+
+            height: 12px;
+
+            margin-left: 0.25rem;
+
+            opacity: 0.35;
+
+            transition: all var(--transition-speed) ease;
+
+        }
+
+        .sortable-header:hover .sort-icon,
+
+        .sortable-header.active .sort-icon {
+
+            opacity: 1;
+
+            color: var(--primary-color);
+
+        }
+
+        #he-search-input {
+
+            transition: all var(--transition-speed) ease;
+
+            height: 2.3rem;
+
+            min-height: 2.3rem;
+
+            line-height: 1.4;
+
+        }
+
+        #he-search-input:focus {
+
+            border-color: var(--primary-color) !important;
+
+            box-shadow: 0 0 0 3px var(--primary-glow) !important;
+
+            background-color: var(--bg-secondary) !important;
+
+        }
+
+
+
+        /* 🔴 AI 財務顧問：雙欄響應式排版與美化 */
+
+        @media (max-width: 768px) {
+
+            .ai-split-container {
+
+                grid-template-columns: 1fr !important;
+
+                overflow-y: auto !important;
+
+            }
+
+            .ai-left-config {
+
+            border-right: none !important;
+
+                margin-right: 0 !important;
+
+                padding-right: 0 !important;
+
+                overflow-y: visible !important;
+
+            }
+
+            .ai-right-report {
+
+                min-height: 360px !important;
+
+            }
+
+        }
+
+
+
+        /* ====================================================
+
+           雙軌模式與 OAuth 整合 — 前端樣式 (Auth & Scanning Panels)
+
+           ==================================================== */
+
+        .auth-status-container {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.6rem;
+
+            margin-right: 0.5rem;
+
+        }
+
+        .mode-badge {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 0.35rem;
+
+            padding: 0.4rem 0.8rem;
+
+            font-size: 0.75rem;
+
+            font-weight: 600;
+
+            border-radius: var(--border-radius);
+
+            border: 1px solid var(--border-color);
+
+            background: var(--bg-secondary);
+
+            color: var(--text-secondary);
+
+            transition: all 0.2s ease;
+
+        }
+
+        .mode-badge.guest {
+
+            color: var(--success-color);
+
+            background: rgba(16, 185, 129, 0.06);
+
+            border-color: rgba(16, 185, 129, 0.2);
+
+        }
+
+        .mode-badge.cloud {
+
+            color: var(--primary-color);
+
+            background: rgba(37, 99, 235, 0.06);
+
+            border-color: rgba(37, 99, 235, 0.2);
+
+        }
+
+        .auth-user-info {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.45rem;
+
+            padding: 0.25rem 0.6rem;
+
+            border-radius: var(--border-radius);
+
+            background: var(--bg-secondary);
+
+            border: 1px solid var(--border-color);
+
+            font-size: 0.75rem;
+
+            font-weight: 500;
+
+        }
+
+        .auth-avatar {
+
+            width: 22px;
+
+            height: 22px;
+
+            border-radius: 50%;
+
+            object-fit: cover;
+
+            border: 1px solid var(--border-color);
+
+        }
+
+        .btn-auth-action {
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 0.3rem;
+
+            padding: 0.4rem 0.8rem;
+
+            font-size: 0.72rem;
+
+            font-weight: 600;
+
+            border-radius: var(--border-radius);
+
+            cursor: pointer;
+
+            transition: all 0.2s ease;
+
+            text-decoration: none;
+
+            border: none;
+
+        }
+
+        .btn-login {
+
+            background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+
+            color: #fff !important;
+
+            box-shadow: 0 2px 5px rgba(37, 99, 235, 0.15);
+
+        }
+
+        .btn-login:hover {
+
+            transform: translateY(-1px);
+
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.25);
+
+        }
+
+        .btn-logout {
+
+            background: var(--bg-secondary);
+
+            color: var(--text-primary);
+
+            border: 1px solid var(--border-color);
+
+        }
+
+        .btn-logout:hover {
+
+            background: var(--primary-light);
+
+            color: var(--primary-color);
+
+            border-color: var(--primary-color);
+
+        }
+
+
+
+        /* 掃描資料夾面板 */
+
+        .scan-panel {
+
+            background: var(--bg-primary);
+
+            border: 1px solid var(--border-color);
+
+            border-radius: var(--border-radius-lg);
+
+            padding: 1.25rem;
+
+            margin-bottom: 1.25rem;
+
+            display: flex;
+
+            flex-direction: column;
+
+            gap: 0.8rem;
+
+            transition: all 0.2s ease;
+
+        }
+
+        .scan-panel-header {
+
+            display: flex;
+
+            align-items: center;
+
+            gap: 0.5rem;
+
+            border-bottom: 1px dashed var(--border-color);
+
+            padding-bottom: 0.5rem;
+
+        }
+
+        .scan-panel-header h3 {
+
+            font-size: 0.85rem;
+
+            font-weight: 700;
+
+            margin: 0;
+
+            color: var(--text-primary);
+
+        }
+
+        .scan-input-group {
+
+            display: flex;
+
+            gap: 0.5rem;
+
+        }
+
+        .scan-input {
+
+            flex: 1;
+
+            padding: 0.45rem 0.75rem;
+
+            font-size: 0.78rem;
+
+            border: 1px solid var(--border-color);
+
+            border-radius: var(--border-radius);
+
+            background: var(--bg-secondary);
+
+            color: var(--text-primary);
+
+            outline: none;
+
+            transition: border-color 0.2s;
+
+        }
+
+        .scan-input:focus {
+
+            border-color: var(--primary-color);
+
+        }
+
+        .btn-scan {
+
+            background: linear-gradient(135deg, var(--primary-color), #4f46e5);
+
+            color: #fff;
+
+            border: none;
+
+            padding: 0.45rem 1rem;
+
+            font-size: 0.78rem;
+
+            font-weight: 600;
+
+            border-radius: var(--border-radius);
+
+            cursor: pointer;
+
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 0.35rem;
+
+            transition: all 0.2s ease;
+
+        }
+
+        .btn-scan:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(37, 99, 235, 0.15);
+        }
+
+        /* ====================================================
+           全新設計：極致精緻的 Header 帳戶與雙軌模式下拉選單 (Auth Dropdown)
+           ==================================================== */
+        .auth-status-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .auth-trigger-btn {
+            position: relative;
+            width: 2.2rem;
+            height: 2.2rem;
+            padding: 0 !important;
+            border-radius: var(--border-radius) !important;
+            display: flex !important;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            overflow: visible; /* 允許小圓點突出 */
+        }
+
+        /* 模式指示徽章 (小圓點) */
+        .auth-trigger-btn::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            right: -1px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            border: 1.5px solid var(--bg-secondary);
+        }
+
+        .auth-trigger-btn.guest-active::after {
+            background-color: #10B981; /* 地端綠色 */
+        }
+
+        .auth-trigger-btn.cloud-active::after {
+            background-color: var(--primary-color); /* 雲端藍色 */
+        }
+
+        .auth-trigger-btn img.auth-avatar {
+            width: 100%;
+            height: 100%;
+            border-radius: var(--border-radius);
+            object-fit: cover;
+        }
+
+        /* 下拉選單卡片 */
+        .auth-dropdown {
+            position: absolute;
+            top: 2.7rem;
+            right: 0;
+            width: 260px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-lg);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            padding: 1.25rem 1rem;
+            display: none; /* 預設隱藏 */
+            flex-direction: column;
+            gap: 0.85rem;
+            z-index: 1000;
+            animation: slideDownFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .auth-dropdown.show {
+            display: flex;
+        }
+
+        .auth-dropdown-header {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .auth-dropdown-header span.title {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .auth-dropdown-profile {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .auth-dropdown-profile img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        .auth-dropdown-profile .info {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            text-align: left;
+        }
+
+        .auth-dropdown-profile .info .name {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .auth-dropdown-profile .info .mode {
+            font-size: 0.68rem;
+            color: var(--text-secondary);
+        }
+
+        /* 下拉按鈕選項 */
+        .auth-dropdown-options {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .auth-dropdown-btn {
+            width: 100%;
+            padding: 0.5rem 0.75rem;
+            border-radius: var(--border-radius);
+            font-size: 0.76rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            background: transparent;
+            color: var(--text-primary);
+            text-align: left;
+        }
+
+        .auth-dropdown-btn:hover {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+        }
+
+        .auth-dropdown-btn.active-mode {
+            background-color: var(--primary-light);
+            color: var(--primary-color);
+            border-color: rgba(37, 99, 235, 0.15);
+        }
+
+        .auth-dropdown-btn.guest-btn.active-mode {
+            background-color: rgba(16, 185, 129, 0.06);
+            color: #10B981;
+            border-color: rgba(16, 185, 129, 0.15);
+        }
+
+        .auth-dropdown-btn i, .auth-dropdown-btn svg {
+            width: 14px;
+            height: 14px;
+            flex-shrink: 0;
+        }
+
+        .auth-dropdown-footer {
+            border-top: 1px solid var(--border-color);
+            padding-top: 0.6rem;
+            margin-top: 0.15rem;
+        }
+
+        /* slideDownFade Animation */
+        @keyframes slideDownFade {
+            from {
+                opacity: 0;
+                transform: translateY(-8px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ====================================================
+           UI/UX 優化：Header 操作圖示幾何對稱與均勻間距
+           ==================================================== */
+        .header-actions {
+            display: flex !important;
+            align-items: center !important;
+            gap: 0.6rem !important;
+        }
+
+        .header-actions .icon-btn,
+        .header-actions .auth-trigger-btn {
+            width: 2.2rem !important;
+            height: 2.2rem !important;
+            padding: 0 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: var(--border-radius) !important;
+            flex-shrink: 0 !important;
+            box-sizing: border-box !important;
+        }
+
+        .header-actions .icon-btn i,
+        .header-actions .icon-btn svg,
+        .header-actions .auth-trigger-btn i,
+        .header-actions .auth-trigger-btn svg {
+            width: 18px !important;
+            height: 18px !important;
+            min-width: 18px !important;
+            min-height: 18px !important;
+        }
+
+        /* ====================================================
+           UI/UX 優化：操作面板高度對齊拉平與 Mobile-Friendly
+           ==================================================== */
+        @media (min-width: 1201px) {
+            .operation-section {
+                align-items: stretch !important; /* 確保左右面板高度一致 */
+            }
+            .right-panel.card {
+                display: flex !important;
+                flex-direction: column !important;
+                height: 100% !important;
+            }
+            .review-area {
+                flex: 1 !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+                min-height: 350px !important;
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .operation-section {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+            .review-area {
+                min-height: 300px !important; /* 手機端收縮高度，提升直覺度 */
+            }
+            .upload-zone {
+                padding: 1.5rem !important; /* 手機端節省空間 */
+            }
+        }
+    </style>
+
+</head>
+
+<body class="light-mode"> <!-- 預設為淺色模式，切換時改為 dark-mode -->
+
+    <header class="main-header">
+
+        <div class="header-logo">
+
+            <div class="logo-icon">
+
+                <i data-lucide="wallet-cards"></i>
+
+            </div>
+
+            <div class="logo-text">
+
+                <h1>智匯卡管家</h1>
+
+                <span>Card Statement Manager</span>
+
+            </div>
+
+        </div>
+
+        <div class="header-actions">
+            <!-- 智慧財務顧問 Header 按鈕 (NEW - 簡潔方形弧角圖示化) -->
+            <button id="header-ai-btn" class="icon-btn" title="諮詢 AI 智匯管家">
+                <i data-lucide="bot-message-square"></i>
+            </button>
+
+            <!-- 亮暗主題切換按鈕 -->
+            <button id="theme-toggle" class="icon-btn" title="切換主題">
+                <i data-lucide="sun" class="sun-icon"></i>
+                <i data-lucide="moon" class="moon-icon"></i>
+            </button>
+
+            <!-- 雲端與地端雙軌模式切換區 (NEW) -->
+            <div id="auth-status-container" class="auth-status-container"></div>
+
+            <!-- 系統設定按鈕 -->
+            <button id="settings-btn" class="icon-btn" title="系統設定 & 資料維護">
+                <i data-lucide="settings"></i>
+            </button>
+        </div>
+
+    </header>
+
+
+
+    <main class="main-content">
+
+        <!-- 頂部 KPI 與 異常消費警示區 -->
+
+        <section class="dashboard-kpi">
+
+            <div class="kpi-card" id="kpi-total-amount">
+
+                <div class="kpi-icon blue"><i data-lucide="dollar-sign"></i></div>
+
+                <div class="kpi-info">
+
+                    <h3>篩選區間消費額</h3>
+
+                    <p class="kpi-value">NT$ 0</p>
+
+                </div>
+
+            </div>
+
+            <div class="kpi-card" id="kpi-total-count">
+
+                <div class="kpi-icon purple"><i data-lucide="receipt"></i></div>
+
+                <div class="kpi-info">
+
+                    <h3>篩選刷卡筆數</h3>
+
+                    <p class="kpi-value">0 筆</p>
+
+                </div>
+
+            </div>
+
+            <div class="kpi-card alert-card interactive-kpi-card" id="kpi-anomaly-alert" style="cursor: pointer;" title="點選啟動 AI 智匯管家進行深度財務診斷">
+
+                <div class="kpi-icon yellow"><i data-lucide="sparkles"></i></div>
+
+                <div class="kpi-info">
+
+                    <h3>AI 智匯管家</h3>
+
+                    <p class="kpi-value text-alert" style="color: var(--primary-color);">✨ 立即診斷</p>
+
+                    <span class="kpi-sub" id="alert-subtext">點擊進行本月消費診斷，找出您的省錢關鍵</span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- 樞紐分析圖表與月份 Slicer 區 -->
+
+        <section class="dashboard-charts">
+
+            <!-- 1. 消費分類占比圓餅圖 -->
+
+            <div class="chart-container card">
+
+                <div class="chart-header">
+
+                    <h2><i data-lucide="pie-chart"></i> 消費分類占比</h2>
+
+                    <span class="chart-sub">刷卡分類占比分析 (點選圖示可同步底下消費明細)</span>
+
+                </div>
+
+                <div class="chart-wrapper">
+
+                    <canvas id="categoryChart"></canvas>
+
+                </div>
+
+            </div>
+
+            
+
+            <!-- 2. 月度消費與銀行趨勢長條圖 -->
+
+            <div class="chart-container card">
+
+                <div class="chart-header">
+
+                    <h2><i data-lucide="bar-chart-3"></i> 月度消費與銀行趨勢</h2>
+
+                    <span class="chart-sub">歷史趨勢與來源銀行統計 (點選圖示可同步底下消費明細)</span>
+
+                </div>
+
+                <div class="chart-wrapper">
+
+                    <canvas id="trendChart"></canvas>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- 歷史消費明細 -->
+
+        <section class="history-explorer card">
+
+
+
+            <!-- Section Header -->
+
+            <div class="he-header">
+
+                <div class="he-title">
+
+                    <i data-lucide="list" style="width:18px;height:18px;"></i>
+
+                    <h2>歷史消費明細</h2>
+
+                </div>
+
+                <!-- 🔍 雙引擎動態過濾搜尋列 (NEW) -->
+
+                <div class="he-header-actions" style="display:flex; align-items:center; gap:0.8rem; flex: 1; justify-content: flex-end;">
+
+                    <div class="he-search-wrapper" style="position:relative; width:100%; max-width:220px;">
+
+                        <i data-lucide="search" style="position:absolute; left:0.65rem; top:50%; transform:translateY(-50%); width:13px; height:13px; color:var(--text-secondary); pointer-events:none;"></i>
+
+                        <input type="text" id="he-search-input" placeholder="輸入關鍵字搜尋明細/銀行..." style="width:100%; padding:0.4rem 0.6rem 0.4rem 1.8rem; font-size:0.75rem; font-family:inherit; border:1px solid var(--border-color); border-radius:var(--border-radius); background:var(--bg-secondary); color:var(--text-primary); transition:all var(--transition-speed); outline:none;" title="可直接搜尋刷卡明細或刷卡銀行名稱">
+
+                    </div>
+
+                    <button id="filter-console-toggle" class="he-filter-btn" title="篩選條件">
+
+                        <i data-lucide="sliders-horizontal" style="width:15px;height:15px;"></i>
+
+                        <span>篩選</span>
+
+                    </button>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Filter Panel (slide in/out) -->
+
+            <div id="explorer-bi-console" class="he-filter-panel">
+
+                <div class="he-filter-inner">
+
+
+
+                    <!-- 年月 -->
+
+                    <div class="he-filter-group">
+
+                        <div class="he-filter-group-header">
+
+                            <div class="he-header-title">
+
+                                <i data-lucide="calendar" style="width:13px;height:13px;"></i>
+
+                                <span>帳單月份</span>
+
+                            </div>
+
+                            <div class="he-quick-actions">
+
+                                <span class="he-quick-action" id="month-select-all">全選</span>
+
+                                <span class="he-quick-divider">/</span>
+
+                                <span class="he-quick-action" id="month-clear-all">清除</span>
+
+                            </div>
+
+                        </div>
+
+                        <div id="month-slicer-container">
+
+                            <!-- dynamically generated -->
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="he-filter-divider"></div>
+
+
+
+                    <!-- 分類 + 銀行 side by side -->
+
+                    <div class="he-filter-row-2col">
+
+                        <div class="he-filter-group">
+
+                            <div class="he-filter-group-header">
+
+                                <div class="he-header-title">
+
+                                    <i data-lucide="tags" style="width:13px;height:13px;"></i>
+
+                                    <span>消費分類</span>
+
+                                </div>
+
+                                <div class="he-quick-actions">
+
+                                    <span class="he-quick-action" id="category-select-all">全選</span>
+
+                                    <span class="he-quick-divider">/</span>
+
+                                    <span class="he-quick-action" id="category-clear-all">清除</span>
+
+                                </div>
+
+                            </div>
+
+                            <div id="category-slicer-container" class="he-slicer-host">
+
+                                <!-- dynamically generated -->
+
+                            </div>
+
+                        </div>
+
+                        <div class="he-filter-group">
+
+                            <div class="he-filter-group-header">
+
+                                <div class="he-header-title">
+
+                                    <i data-lucide="landmark" style="width:13px;height:13px;"></i>
+
+                                    <span>來源銀行</span>
+
+                                </div>
+
+                                <div class="he-quick-actions">
+
+                                    <span class="he-quick-action" id="bank-select-all">全選</span>
+
+                                    <span class="he-quick-divider">/</span>
+
+                                    <span class="he-quick-action" id="bank-clear-all">清除</span>
+
+                                </div>
+
+                            </div>
+
+                            <div id="bank-slicer-container" class="he-slicer-host">
+
+                                <!-- dynamically generated -->
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Data Table -->
+
+            <div class="table-wrapper explorer-table-wrapper">
+
+                <table class="review-table" id="explorer-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th width="12%" class="sortable-header" data-sort-key="bill_month" title="點擊排序帳單月份">
+
+                                <span>帳單月份</span>
+
+                                <i data-lucide="arrow-up-down" class="sort-icon"></i>
+
+                            </th>
+
+                            <th width="13%" class="sortable-header" data-sort-key="bank_name" title="點擊排序刷卡銀行">
+
+                                <span>刷卡銀行</span>
+
+                                <i data-lucide="arrow-up-down" class="sort-icon"></i>
+
+                            </th>
+
+                            <th width="15%" class="sortable-header" data-sort-key="card_date" title="點擊排序刷卡日期">
+
+                                <span>刷卡日期</span>
+
+                                <i data-lucide="arrow-up-down" class="sort-icon"></i>
+
+                            </th>
+
+                            <th width="25%" class="sortable-header" data-sort-key="detail" title="點擊排序消費明細">
+
+                                <span>消費明細</span>
+
+                                <i data-lucide="arrow-up-down" class="sort-icon"></i>
+
+                            </th>
+
+                            <th width="18%" class="sortable-header" data-sort-key="amount" title="點擊排序金額">
+
+                                <span>新台幣金額</span>
+
+                                <i data-lucide="arrow-up-down" class="sort-icon"></i>
+
+                            </th>
+
+                            <th width="17%">消費分類</th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="explorer-table-body">
+
+                        <tr><td colspan="6" style="text-align:center; color:var(--text-secondary);">資料載入中...</td></tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- 核心操作區域：上傳 & 審核 -->
+
+        <section class="operation-section">
+
+            <!-- 左側：帳單讀入與範例區 -->
+
+            <div class="left-panel card">
+
+                <div class="panel-header">
+
+                    <h2><i data-lucide="file-up"></i> 匯入信用卡帳單</h2>
+
+                    <p>支援上傳 Excel、PDF 檔或 PNG/JPG 帳單影像</p>
+
+                </div>
+
+
+
+                <!-- 雙軌資料自動掃描面板 (NEW) -->
+
+                <div id="dual-scan-panel" class="scan-panel"></div>
+
+
+
+                <!-- 檔案上傳拖放區 -->
+
+                <div class="upload-zone" id="drop-zone">
+
+                    <input type="file" id="file-input" accept=".xlsx,.xlsm,.xls,.pdf,.png,.jpg,.jpeg" style="display: none;">
+
+                    <i data-lucide="cloud-upload" class="upload-icon"></i>
+
+                    <p class="upload-text">拖曳帳單檔案至此，或 <span>點擊上傳</span></p>
+
+                    <span class="upload-hint">支持 PDF (含加密)、圖片與 Excel 格式</span>
+
+                </div>
+
+
+
+                <!-- 預設 6 張範例帳單快捷鍵 -->
+
+                <div class="example-section">
+
+                    <div class="example-header">
+
+                        <h3><i data-lucide="sparkles"></i> 內建 2026 範例帳單快速體驗</h3>
+
+                    </div>
+
+                    <div class="example-grid">
+
+                        <button class="example-card" data-filename="A銀行_2026_01_帳單明細.png">
+
+                            <div class="card-chip"></div>
+
+                            <span class="card-bank">A銀行</span>
+
+                            <span class="card-date">2026 / 01</span>
+
+                            <div class="card-logo">VISA</div>
+
+                        </button>
+
+                        <button class="example-card" data-filename="A銀行_2026_02_帳單明細.png">
+
+                            <div class="card-chip"></div>
+
+                            <span class="card-bank">A銀行</span>
+
+                            <span class="card-date">2026 / 02</span>
+
+                            <div class="card-logo">VISA</div>
+
+                        </button>
+
+                        <button class="example-card" data-filename="B銀行_2026_02_帳單明細.png">
+
+                            <div class="card-chip"></div>
+
+                            <span class="card-bank">B銀行</span>
+
+                            <span class="card-date">2026 / 02</span>
+
+                            <div class="card-logo">Master</div>
+
+                        </button>
+
+                        <button class="example-card" data-filename="B銀行_2026_03_帳單明細.png">
+
+                            <div class="card-chip"></div>
+
+                            <span class="card-bank">B銀行</span>
+
+                            <span class="card-date">2026 / 03</span>
+
+                            <div class="card-logo">Master</div>
+
+                        </button>
+
+                        <button class="example-card" data-filename="C銀行_2026_01_帳單明細.png">
+
+                            <div class="card-chip"></div>
+
+                            <span class="card-bank">C銀行</span>
+
+                            <span class="card-date">2026 / 01</span>
+
+                            <div class="card-logo">JCB</div>
+
+                        </button>
+
+                        <button class="example-card" data-filename="C銀行_2026_03_帳單明細.png">
+
+                            <div class="card-chip"></div>
+
+                            <span class="card-bank">C銀行</span>
+
+                            <span class="card-date">2026 / 03</span>
+
+                            <div class="card-logo">JCB</div>
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- 右側：AI 辨識審查與核准區 (Pending-Only) -->
+
+            <div class="right-panel card">
+
+                <div class="panel-header">
+
+                    <h2><i data-lucide="check-square"></i> AI 分類審核與人工核准</h2>
+
+                    <p>已匹配對照表的項目會自動核准，在此<b>僅呈現待確認明細</b>以提升記帳效率！</p>
+
+                </div>
+
+
+
+                <div class="review-area" id="review-area-container">
+
+                    <!-- 預設等待狀態 -->
+
+                    <div class="review-placeholder" id="review-placeholder">
+
+                        <i data-lucide="clipboard-list" class="placeholder-icon"></i>
+
+                        <p>等待帳單檔案讀入...</p>
+
+                        <span>請點選左側範例帳單或上傳帳單檔案，AI 將為您辨識明細</span>
+
+                    </div>
+
+
+
+                    <!-- AI 掃描雷射光動畫 -->
+
+                    <div class="review-scanning" id="review-scanning" style="display: none;">
+
+                        <div class="scanner-container">
+
+                            <div class="scanner-laser"></div>
+
+                            <div class="scanner-grid"></div>
+
+                            <i data-lucide="scan" class="scanning-icon"></i>
+
+                        </div>
+
+                        <p>AI 正自動辨識明細中...</p>
+
+                        <span id="scan-filename">正在載入帳單圖片</span>
+
+                    </div>
+
+
+
+                    <!-- 實際渲染的待確認明細清單 (動態生成) -->
+
+                    <div class="review-content" id="review-content" style="display: none;">
+
+                        <div class="bill-summary-info">
+
+                            <div class="summary-info-item">
+
+                                <span class="label">來源銀行</span>
+
+                                <span class="value" id="res-bank-name">-</span>
+
+                            </div>
+
+                            <div class="summary-info-item">
+
+                                <span class="label">帳單月份</span>
+
+                                <span class="value" id="res-bill-month">-</span>
+
+                            </div>
+
+                            <div class="summary-info-item">
+
+                                <span class="label">AI 運作模式</span>
+
+                                <span class="value" id="res-ai-mode" style="font-weight: 700;">-</span>
+
+                            </div>
+
+                            <div class="summary-info-item">
+
+                                <span class="label">待審查項目</span>
+
+                                <span class="value highlight-purple" id="res-pending-count">0 筆</span>
+
+                            </div>
+
+                            <div class="summary-info-item">
+
+                                <span class="label">帳單總金額</span>
+
+                                <span class="value highlight" id="res-total-amount">NT$ 0</span>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- 列表清空時顯示的完美完工視覺 -->
+
+                        <div id="review-empty-celebration" class="celebration-state" style="display: none;">
+
+                            <i data-lucide="check-circle-2" class="celebration-icon"></i>
+
+                            <h4>🎉 本張帳單已全部完美核准分類！</h4>
+
+                            <p>所有待確認項目均已審查完成。您可以直接點擊下方按鈕匯入 Excel 總表。</p>
+
+                        </div>
+
+
+
+                        <div class="table-wrapper" id="review-table-wrapper">
+
+                            <table class="review-table">
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th width="12%">刷卡日期</th>
+
+                                        <th width="35%">消費明細</th>
+
+                                        <th width="15%">新台幣金額</th>
+
+                                        <th width="12%">地區</th>
+
+                                        <th width="26%">消費分類 & 智慧審核</th>
+
+                                    </tr>
+
+                                </thead>
+
+                                <tbody id="review-items-body">
+
+                                    <!-- 動態生成待審核 rows -->
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+
+
+                        <div class="review-actions">
+
+                            <button class="btn btn-secondary" id="discard-btn"><i data-lucide="trash-2"></i> 放棄匯入</button>
+
+                            <button class="btn btn-primary" id="approve-all-btn"><i data-lucide="check-circle-2"></i> 匯入儀表板</button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+
+    <!-- =====================================================
+
+         彈窗 Modal 一：PDF 密碼輸入
+
+         ===================================================== -->
+
+    <div class="modal-backdrop" id="password-modal" style="display: none;">
+
+        <div class="modal-card">
+
+            <div class="modal-header">
+
+                <h3><i data-lucide="lock" class="lock-icon"></i> 偵測到加密 PDF 帳單</h3>
+
+                <button class="modal-close" onclick="closeModal('password-modal')"><i data-lucide="x"></i></button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <p>上傳的 <strong id="enc-pdf-name">帳單</strong> 已被加密，請輸入該 PDF 檔案的解密密碼以利匯入：</p>
+
+                <div class="input-group">
+
+                    <label for="pdf-password-input">解密密碼</label>
+
+                    <input type="password" id="pdf-password-input" placeholder="請輸入密碼">
+
+                </div>
+
+                <div class="checkbox-group">
+
+                    <input type="checkbox" id="remember-pdf-pwd" checked>
+
+                    <label for="remember-pdf-pwd">記住此密碼（保存在 SQLite 資料庫，下次上傳該銀行帳單將自動解密）</label>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button class="btn btn-secondary" onclick="closeModal('password-modal')">取消</button>
+
+                <button class="btn btn-primary" id="submit-pdf-password-btn">確認解密</button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- =====================================================
+
+         彈窗 Modal 四：Google Drive OAuth 設定說明與沙盒入口 (NEW)
+
+         ===================================================== -->
+
+    <div class="modal-backdrop" id="oauth-config-modal" style="display: none;">
+
+        <div class="modal-card modal-lg" style="max-width: 600px;">
+
+            <div class="modal-header">
+
+                <h3><i data-lucide="cloud-lightning" class="lock-icon" style="color: var(--primary-color);"></i> 啟用 Google Drive 雲端同步儲存</h3>
+
+                <button class="modal-close" onclick="closeModal('oauth-config-modal')"><i data-lucide="x"></i></button>
+
+            </div>
+
+            <div class="modal-body" style="line-height: 1.6; font-size: 0.82rem; color: var(--text-primary); padding: 1.25rem;">
+
+                <div class="alert-box warning-alert" style="background: rgba(245, 158, 11, 0.08); border-left: 4px solid #f59e0b; color: #d97706; padding: 0.75rem 1rem; border-radius: 6px; margin-bottom: 1.25rem; font-size: 0.76rem;">
+                    <strong>ℹ️ 系統提示：</strong> 本機後端尚未配置 Google OAuth 憑證（無法直接連接 Gmail 登入）。
+                </div>
+
+                <p style="margin-bottom: 0.75rem;">若要在此電腦啟用<strong>真正的 Google Drive 雙向雲端同步</strong>，請按照以下步驟完成設定：</p>
+                
+                <ol style="margin-left: 1.25rem; margin-bottom: 1.25rem; display: flex; flex-direction: column; gap: 0.6rem;">
+                    <li><strong>第一步：</strong> 在您的電腦中，開啟專案根目錄下的 <code>.env</code> 檔案。</li>
+                    <li><strong>第二步：</strong> 參考專案根目錄下的 <code>.env.example</code>，前往 <a href="https://console.cloud.google.com/" target="_blank" style="color: var(--primary-color); text-decoration: underline; font-weight: 500;">Google Cloud Console</a> 申請您的 OAuth 2.0 憑證。</li>
+                    <li><strong>第三步：</strong> 將申請取得的 <code>GOOGLE_CLIENT_ID</code> 與 <code>GOOGLE_CLIENT_SECRET</code> 貼入 <code>.env</code> 檔案中。</li>
+                    <li><strong>第四步：</strong> 雙擊專案目錄下的 <code>RUN.BAT</code> 重新啟動伺服器，再點選「Gmail 登入」即可！</li>
+                </ol>
+
+                <div style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
+                    <p style="font-weight: 600; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.35rem; color: var(--success-color);">
+                        <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i> 想要免設定直接體驗？
+                    </p>
+                    <p style="font-size: 0.76rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                        如果您在公司電腦無權限設定 API，或是想立即體驗，可以點擊下方按鈕<strong>啟動模擬雲端沙盒</strong>。系統會以完全相同的方式模擬 Google Drive 的自訂資料夾掃描與雲端同步流程！
+                    </p>
+                </div>
+
+            </div>
+
+            <div class="modal-footer" style="display: flex; gap: 0.6rem; justify-content: flex-end; padding-top: 0.75rem; border-top: 1px solid var(--border-color);">
+
+                <button class="btn btn-secondary" onclick="closeModal('oauth-config-modal')">關閉</button>
+
+                <button class="btn btn-primary" onclick="enableMockCloudSandbox()" style="background: var(--success-color); border-color: var(--success-color); display: flex; align-items: center; gap: 0.35rem; color: #fff;">
+                    <i data-lucide="play" style="width: 12px; height: 12px;"></i> 啟動模擬雲端沙盒
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- =====================================================
+
+         彈窗 Modal 二：系統設定 & 資料維護面板
+
+         ===================================================== -->
+
+    <div class="modal-backdrop" id="settings-modal" style="display: none;">
+
+        <div class="modal-card modal-lg">
+
+            <div class="modal-header">
+
+                <h3><i data-lucide="sliders"></i> 系統設定 & 資料庫維護</h3>
+
+                <button class="modal-close" onclick="closeModal('settings-modal')"><i data-lucide="x"></i></button>
+
+            </div>
+
+            <div class="modal-tabs">
+
+                <button class="tab-btn active" onclick="switchTab('db-tab', event)"><i data-lucide="database"></i> 資料庫明細維護</button>
+
+                <button class="tab-btn" onclick="switchTab('pwd-tab', event)"><i data-lucide="key-round"></i> PDF 自動解密密碼</button>
+
+                <button class="tab-btn" onclick="switchTab('keyword-tab', event)"><i data-lucide="tags"></i> 關鍵字分類表</button>
+
+                <button class="tab-btn" onclick="switchTab('budget-tab', event)"><i data-lucide="calculator"></i> 每月預算規劃</button>
+
+                <button class="tab-btn" onclick="switchTab('api-tab', event)"><i data-lucide="info"></i> 系統運行狀態</button>
+
+            </div>
+
+            <div class="modal-body">
+
+                <!-- Tab 1: 資料庫明細維護 -->
+
+                <div class="tab-content" id="db-tab">
+
+                    <p class="tab-desc">在此可以查看 SQLite 資料庫中的歷史帳單月份，並提供一鍵「By 月份」刪除功能。刪除時將會<b>同步更新 Excel 實體檔案</b>，安全可靠。</p>
+
+                    <div class="table-wrapper">
+
+                        <table class="settings-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>帳單月份</th>
+
+                                    <th>來源銀行數</th>
+
+                                    <th>刷卡總筆數</th>
+
+                                    <th>該月消費總額</th>
+
+                                    <th width="15%" style="text-align: center;">操作</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="db-months-body">
+
+                                <!-- 動態生成 -->
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- Tab 2: PDF 自動解密密碼 -->
+
+                <div class="tab-content" id="pwd-tab" style="display: none;">
+
+                    <p class="tab-desc">在此管理已記住的銀行 PDF 解密密碼。設定後，上傳對應銀行的加密 PDF 將會自動解密。</p>
+
+                    <div class="pwd-manager-form">
+
+                        <div class="input-row">
+
+                            <div class="input-group">
+
+                                <label>銀行名稱</label>
+
+                                <input type="text" id="new-pwd-bank" placeholder="例如 A銀行, B銀行">
+
+                            </div>
+
+                            <div class="input-group">
+
+                                <label>PDF 密碼</label>
+
+                                <input type="password" id="new-pwd-val" placeholder="請輸入密碼">
+
+                            </div>
+
+                            <button class="btn btn-primary" id="save-new-pwd-btn"><i data-lucide="plus"></i> 儲存密碼</button>
+
+                        </div>
+
+                    </div>
+
+                    <div class="table-wrapper">
+
+                        <table class="settings-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>銀行名稱</th>
+
+                                    <th>已存密碼</th>
+
+                                    <th>最後更新時間</th>
+
+                                    <th width="15%" style="text-align: center;">操作</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="pdf-pwd-body">
+
+                                <!-- 動態生成 -->
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- Tab 3: 關鍵字對照表 -->
+
+                <div class="tab-content" id="keyword-tab" style="display: none;">
+
+                    <p class="tab-desc">本清單已快取於後端資料庫，<b>點選快速流暢且絕對防鎖定卡死</b>。新增後會自動在背景同步寫回 Excel。AI 會優先比對關鍵字以定義消費分類。</p>
+
+                    
+
+                    <!-- 批次上傳對照表區區塊 -->
+
+                    <div class="pwd-manager-form batch-upload-section">
+
+                        <div class="batch-upload-row">
+
+                            <div class="batch-upload-info">
+
+                                <h4><i data-lucide="sheet"></i> 批次匯入對照表 Excel</h4>
+
+                                <p class="tab-desc" style="margin-bottom:0;">選擇格式為 <code>[關鍵字, 消費分類]</code> 的對照表 Excel，可快速一鍵批次覆寫更新。</p>
+
+                            </div>
+
+                            <div class="batch-upload-btn-wrapper">
+
+                                <input type="file" id="keyword-batch-input" accept=".xlsx,.xls" style="display: none;">
+
+                                <button class="btn btn-primary btn-sm" id="trigger-batch-kw-btn">
+
+                                    <i data-lucide="file-spreadsheet"></i> 選擇檔案上傳
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="pwd-manager-form">
+
+                        <div class="input-row">
+
+                            <div class="input-group">
+
+                                <label>單筆關鍵字</label>
+
+                                <input type="text" id="new-kw-text" placeholder="例如 全聯, Uber">
+
+                            </div>
+
+                            <div class="input-group">
+
+                                <label>消費分類</label>
+
+                                <select id="new-kw-cat">
+
+                                    <option value="購物">購物</option>
+
+                                    <option value="餐飲">餐飲</option>
+
+                                    <option value="休閒旅遊">休閒旅遊</option>
+
+                                    <option value="交通運輸">交通運輸</option>
+
+                                    <option value="辦公用品">辦公用品</option>
+
+                                    <option value="醫療/健康">醫療/健康</option>
+
+                                    <option value="其他">其他</option>
+
+                                </select>
+
+                            </div>
+
+                            <button class="btn btn-primary" id="save-new-kw-btn"><i data-lucide="plus"></i> 新增規則</button>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- 🔍 對照表即時搜尋列 (新增) -->
+
+                    <div class="search-rule-row" style="margin-bottom: 0.8rem;">
+
+                        <div class="input-group" style="position: relative;">
+
+                            <input type="text" id="keyword-search-input" placeholder="🔍 輸入關鍵字或消費分類進行即時搜尋過濾..." style="padding-left: 0.8rem; width: 100%; border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); height: 36px; font-size: 0.8rem; outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--primary-color)'" onblur="this.style.borderColor='var(--border-color)'">
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="table-wrapper">
+
+                        <table class="settings-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>關鍵字</th>
+
+                                    <th>對應消費分類</th>
+
+                                    <th width="25%" style="text-align: center;">操作</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="keyword-body">
+
+                                <!-- 動態生成 -->
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- Tab 4: 每月預算規劃 (NEW) -->
+
+                <div class="tab-content" id="budget-tab" style="display: none;">
+
+                    <div class="budget-header-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; flex-wrap: wrap; gap: 0.5rem;">
+
+                        <div class="budget-info">
+
+                            <p class="tab-desc" style="margin-bottom:0;">設定各類別預算，AI 將以此為基準進行超支分析與診斷。</p>
+
+                        </div>
+
+                        <div class="budget-selector" style="display:flex; gap:0.5rem; align-items:center;">
+
+                            <label style="font-size:0.75rem; font-weight:600;">選擇預算區間：</label>
+
+                            <select id="budget-month-select" style="padding: 0.3rem 0.5rem; border-radius: var(--border-radius-sm); border: 1px solid var(--border-color); font-size: 0.75rem;" onchange="loadSettingsBudgetData()">
+
+                                <option value="DEFAULT">預設預算 (所有月份適用)</option>
+
+                                <!-- 動態加入月份 -->
+
+                            </select>
+
+                        </div>
+
+                    </div>
+
+                    
+
+                    <div class="table-wrapper">
+
+                        <table class="settings-table">
+
+                            <thead>
+
+                                <tr>
+
+                                    <th>消費分類</th>
+
+                                    <th>預計月預算 (NT$)</th>
+
+                                    <th width="15%" style="text-align: center;">狀態</th>
+
+                                </tr>
+
+                            </thead>
+
+                            <tbody id="budget-body">
+
+                                <!-- 動態生成 -->
+
+                            </tbody>
+
+                        </table>
+
+                    </div>
+
+                    
+
+                    <div style="margin-top: 1rem; display: flex; justify-content: flex-end;">
+
+                        <button class="btn btn-primary" id="save-all-budgets-btn" onclick="saveAllBudgets()">
+
+                            <i data-lucide="save"></i> 儲存預算配置
+
+                        </button>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- Tab 5: 系統運行狀態 (取代原先的 API Key 設定) -->
+
+                <div class="tab-content" id="api-tab" style="display: none;">
+
+                    <p class="tab-desc"><b>💡 當前運行模式：本地智慧助手模式 (免 API 金鑰)</b></p>
+
+                    <div class="pwd-manager-form" style="background-color: var(--primary-light); border-color: var(--primary-color);">
+
+                        <div style="font-size: 0.82rem; color: var(--text-primary); line-height: 1.6;">
+
+                            目前系統以<b>本地高效能規則引擎</b>運行：<br>
+
+                            • <b>帳單辨識</b>：針對範例帳單提供 100% 精準辨識，無需網路與金鑰。<br>
+
+                            • <b>消費分類</b>：優先匹配您的「關鍵字對照表」，實現極速本地分類。<br>
+
+                            • <b>AI 財務診斷</b>：採用內建的理財邏輯模型產出診斷報告。<br>
+
+                            • <b>搭載核心</b>：智匯 AI 財務核心 (目前處於免金鑰本機運作狀態)。
+
+                        </div>
+
+                    </div>
+
+                    <div style="margin-top: 1rem; text-align: right;">
+
+                        <span class="api-status-text" style="color: var(--success-color); font-weight: 700;"><i data-lucide="check-circle" style="width:14px; height:14px; vertical-align:middle;"></i> 系統狀態正常</span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="modal-footer">
+
+                <button class="btn btn-secondary" onclick="closeModal('settings-modal')">關閉</button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+
+         彈窗 Modal 三：AI 智慧消費診斷與理財建議面板 (NEW)
+
+         ===================================================== -->
+
+    <!-- =====================================================
+
+         彈窗 Modal 三：AI 智慧消費診斷與理財建議面板 (NEW Split-Panel Wizard)
+
+         ===================================================== -->
+
+    <div class="modal-backdrop" id="ai-advisor-modal" style="display: none;">
+
+        <div class="modal-card modal-lg" style="max-height: 90vh; max-width: 820px; width: 95%;">
+
+            <div class="modal-header">
+
+                <h3><i data-lucide="bot-message-square" style="color: var(--primary-color);"></i> AI智匯管家與消費診斷</h3>
+
+                <button class="modal-close" onclick="closeModal('ai-advisor-modal')"><i data-lucide="x"></i></button>
+
+            </div>
+
+            
+
+            <div class="modal-body" style="padding: 1.25rem; overflow: hidden; display: flex; flex-direction: column; gap: 0.8rem; flex: 1;">
+
+                
+
+                <!-- Premium Step-by-Step Wizard View (Configuration Screen 1 & Report Screen 2) -->
+
+                <div class="ai-split-container" style="display: grid; grid-template-columns: 1fr; gap: 1.25rem; flex: 1; min-height: 0;">
+
+                    
+
+                    <!-- Left Column (Screen 1): Settings & Configuration -->
+
+                    <div class="ai-left-config" style="display: flex; flex-direction: column; gap: 0.85rem; overflow-y: auto; padding-right: 0.35rem;">
+
+                        
+
+                        <!-- Step 1: 每月預算規劃 -->
+
+                        <div class="config-card" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 0.85rem; display: flex; flex-direction: column; gap: 0.6rem;">
+
+                            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.4rem;">
+
+                                <h4 style="font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 0.3rem; margin: 0; color: var(--text-primary);">
+
+                                    <i data-lucide="calculator" style="width: 14px; height: 14px; color: var(--primary-color);"></i>
+
+                                    1. 每月各分類預算規劃
+
+                                </h4>
+
+                                <select id="adv-budget-month-select" style="padding: 0.15rem 0.35rem; border-radius: var(--border-radius-sm); border: 1px solid var(--border-color); font-size: 0.68rem; font-weight: 600; background: var(--bg-secondary); color: var(--text-primary); cursor: pointer;" onchange="loadAdvisorBudgetData()">
+
+                                    <option value="DEFAULT">預設預算 (通用)</option>
+
+                                </select>
+
+                            </div>
+
+                            
+
+                            <!-- Budget inputs list -->
+
+                            <div id="adv-budget-inputs-list" style="display: flex; flex-direction: column; gap: 0.45rem; max-height: 185px; overflow-y: auto; padding-right: 0.2rem;">
+
+                                <!-- dynamically generated -->
+
+                            </div>
+
+                            
+
+                            <div style="display: flex; justify-content: flex-end; margin-top: 0.15rem;">
+
+                                <button class="btn btn-sm btn-primary" id="adv-save-budgets-btn" onclick="saveAdvisorBudgets()" style="font-size: 0.68rem; padding: 0.25rem 0.55rem; font-weight: 600;">
+
+                                    <i data-lucide="save" style="width: 11px; height: 11px;"></i> 儲存預算配置
+
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                        
+
+                        <!-- Step 2: 選擇分析資料範圍 -->
+
+                        <div class="config-card" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 0.85rem; display: flex; flex-direction: column; gap: 0.5rem;">
+
+                            <h4 style="font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 0.3rem; margin: 0; color: var(--text-primary); border-bottom: 1px dashed var(--border-color); padding-bottom: 0.4rem;">
+
+                                <i data-lucide="calendar" style="width: 14px; height: 14px; color: var(--primary-color);"></i>
+
+                                2. 選擇分析消費區間
+
+                            </h4>
+
+                            
+
+                            <!-- Range type selector -->
+
+                            <div style="display: flex; gap: 0.6rem; margin-bottom: 0.2rem; flex-wrap: wrap;">
+
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">
+
+                                    <input type="radio" name="adv-range-type" value="single" checked onchange="toggleAdvisorRangeControls()"> 📅 單一月份
+
+                                </label>
+
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">
+
+                                    <input type="radio" name="adv-range-type" value="multiple" onchange="toggleAdvisorRangeControls()"> 📂 多選月份
+
+                                </label>
+
+                                <label style="display: flex; align-items: center; gap: 0.25rem; font-size: 0.72rem; font-weight: 600; color: var(--text-primary); cursor: pointer;">
+
+                                    <input type="radio" name="adv-range-type" value="year" onchange="toggleAdvisorRangeControls()"> 🗓️ 按年分析
+
+                                </label>
+
+                            </div>
+
+                            
+
+                            <!-- Dynamic controls containers -->
+
+                            <div id="adv-range-single-ctrl" style="display: block;">
+
+                                <select id="adv-single-month-select" style="width: 100%; padding: 0.3rem 0.5rem; border-radius: var(--border-radius-sm); border: 1px solid var(--border-color); font-size: 0.72rem; background: var(--bg-secondary); color: var(--text-primary); font-family: 'Outfit'; font-weight: 500;">
+
+                                    <!-- dynamically loaded -->
+
+                                </select>
+
+                            </div>
+
+                            
+
+                            <div id="adv-range-multiple-ctrl" style="display: none; border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); background: var(--bg-secondary); padding: 0.45rem; max-height: 85px; overflow-y: auto;">
+
+                                <div id="adv-multi-month-checkboxes" style="display: flex; flex-direction: column; gap: 0.35rem; font-family: 'Outfit';">
+
+                                    <!-- checkboxes list -->
+
+                                </div>
+
+                            </div>
+
+                            
+
+                            <div id="adv-range-year-ctrl" style="display: none;">
+
+                                <select id="adv-year-select" style="width: 100%; padding: 0.3rem 0.5rem; border-radius: var(--border-radius-sm); border: 1px solid var(--border-color); font-size: 0.72rem; background: var(--bg-secondary); color: var(--text-primary); font-family: 'Outfit'; font-weight: 500;">
+
+                                    <!-- dynamically loaded years -->
+
+                                </select>
+
+                            </div>
+
+                        </div>
+
+                        
+
+                        <!-- Step 3: 開始分析按鈕 -->
+
+                        <button class="btn btn-primary" id="adv-run-analysis-btn" onclick="runAdvisorAnalysis()" style="padding: 0.55rem; font-size: 0.8rem; font-weight: 600; width: 100%; border-radius: var(--border-radius); justify-content: center; background: linear-gradient(135deg, var(--primary-color), #4F46E5); box-shadow: 0 4px 12px rgba(37,99,235,0.15); border: none;">
+
+                            <i data-lucide="sparkles"></i> 3. 啟動 AI 智慧消費診斷
+
+                        </button>
+
+                    </div>
+
+                    
+
+                    <!-- Right Column (Screen 2): Analysis Report Display (Default Hidden) -->
+
+                    <div class="ai-right-report" style="display: none; flex-direction: column; gap: 0.5rem; min-height: 0;">
+
+                        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 0.4rem; flex-wrap: wrap; gap: 0.4rem;">
+
+                            <span style="font-size: 0.78rem; font-weight: 700; color: var(--primary-color); display: flex; align-items: center; gap: 0.25rem;">
+
+                                <i data-lucide="bot-message-square" style="width: 14px; height: 14px;"></i>
+
+                                AI 智慧財務診斷報告
+
+                            </span>
+
+                            <span id="advisor-ai-mode" style="font-size: 0.65rem; font-weight: 600; padding: 0.15rem 0.4rem; border-radius: var(--border-radius-sm); border: 1px solid transparent; display: inline-flex; align-items: center; gap: 0.2rem;">-</span>
+
+                        </div>
+
+                        
+
+                        <!-- One-sentence summary bar (NEW) -->
+
+                        <div id="adv-brief-summary-container" style="display: none; background-color: var(--primary-light); border-left: 4px solid var(--primary-color); padding: 0.45rem 0.75rem; border-radius: var(--border-radius-sm); font-size: 0.74rem; font-weight: 600; color: var(--text-primary); align-items: center; gap: 0.45rem; line-height: 1.45; transition: all 0.2s ease;">
+
+                            <span id="adv-brief-summary-icon-slot" style="display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: 14px; height: 14px;">
+
+                                <i data-lucide="bell" style="width: 14px; height: 14px; color: var(--primary-color);"></i>
+
+                            </span>
+
+                            <span id="adv-brief-summary-text" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">-</span>
+
+                        </div>
+
+                        
+
+                        <!-- Report display box -->
+
+                        <div id="ai-report-content" class="markdown-body" style="flex: 1; overflow-y: auto; font-size: 0.78rem; line-height: 1.6; color: var(--text-primary); background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 1rem; min-height: 320px;">
+
+                            <div style="text-align: center; color: var(--text-secondary); margin-top: 5.5rem;">
+
+                                <i data-lucide="sparkles" style="width: 32px; height: 32px; opacity: 0.25; margin-bottom: 0.6rem; display: block; margin-left: auto; margin-right: auto; animation: pulseSoft 2.5s infinite;"></i>
+
+                                請於左側設定每月預算並選擇分析區間，<br>點擊「啟動 AI 智慧消費診斷」獲得您的專屬財務報告。
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- Report Screen Footer Navigation Buttons (NEW) -->
+
+                        <div style="display: flex; gap: 0.6rem; justify-content: flex-end; padding-top: 0.5rem; border-top: 1px solid var(--border-color); margin-top: 0.15rem; background: var(--bg-primary);">
+
+                            <button class="btn btn-secondary btn-sm" onclick="showAdvisorScreen('config')" style="font-size: 0.72rem; padding: 0.35rem 0.75rem; font-weight: 600; display: inline-flex; align-items: center; gap: 0.3rem;">
+
+                                <i data-lucide="arrow-left" style="width: 12px; height: 12px;"></i> 返回調整預算與區間
+
+                              </button>
+
+                              <button class="btn btn-secondary btn-sm" onclick="closeModal('ai-advisor-modal')" style="font-size: 0.72rem; padding: 0.35rem 0.75rem; font-weight: 600;">
+
+                                  關閉診斷
+
+                              </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- 頁尾 -->
+
+    <footer class="main-footer" style="text-align: center; padding: 1.5rem 1rem; opacity: 0.6;">
+
+        <p style="font-size: 0.72rem; margin: 0;">&copy; 2026 智匯卡管家 Card Statement Manager.</p>
+
+    </footer>
+
+
+
+    <!-- App Script with cache-busting -->
+
+    <script src="js/report-api.js?v=20260528_1057"></script>
+
+    <script src="js/app.js?v=20260528_1057"></script>
+
+</body>
+
+</html>
+
